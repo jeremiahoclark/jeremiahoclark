@@ -8,7 +8,7 @@ Hi, I'm **Jay (Jeremiah Clark)**. My Chinese name is **`永德恺`** (Yǒng Dé 
 - 💼 Previously at **[LinkedIn](https://www.linkedin.com)** (Silicon Valley), **[Pinterest](https://www.pinterest.com)** (international expansion), and **[GGV Capital](https://www.ggvc.com)**.
 - 👨‍💻 Currently building **[InterviewMaster.ai](https://interviewmaster.ai)** (AI-powered SQL interview prep · 3,000+ five-star reviews · 200+ questions from Google, Amazon, Meta, Apple) and **[Underscore Animation](https://underscore.ai)** (AI tooling for animators — `_Imagine`, `_Colorize`, `_Animate`).
 - ✍️ Writing **[Perspective](https://jeremiah.so/perspective)** — a newsletter for family and friends on building, rejection, grit, Japan, and what turning 30 taught me.
-- 🌍 I like ~~powder days in Niseko~~ skiing anywhere (Mt. Bachelor, Utah, Tahoe), learning **Chinese** and **Japanese**, the Réti Opening in chess, and watching Terrace House.
+- 🌍 I like ~~powder days in Niseko~~ skiing anywhere (Mt. Bachelor, Utah, Tahoe), learning **Chinese** and **Japanese**, the Réti Opening in chess, and anime.
 
 If you're curious, my home on the internet is **[jeremiah.so](https://jeremiah.so)**.
 
