@@ -14,7 +14,7 @@ If you're curious, my home on the internet is **[jeremiah.so](https://jeremiah.s
 
 For anything else, DM me on X **[@jeremiahoclark](https://twitter.com/jeremiahoclark)**.
 
-⚡ **AI Token Usage** — tracked with [tokscale](https://tokscale.ai/u/jeremiahoclark), auto-updated on every submit
+⚡ **AI Usage Tracker** — Exploring If More Consumption Equals More Leverage
 
 <img src="assets/tokscale-chart.svg" alt="Cumulative AI token usage across all coding agents since July 2025" width="100%" />
 
