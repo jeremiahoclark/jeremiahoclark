@@ -65,7 +65,7 @@ const THEMES = {
   purple: { line: "#a78bfa", fill: "#7c3aed", edge: ["#a78bfa", "#ec4899"] },
 };
 const themeFlag = process.argv.indexOf("--theme");
-const THEME = THEMES[themeFlag !== -1 ? process.argv[themeFlag + 1] : "cyan"] ?? THEMES.cyan;
+const THEME = THEMES[themeFlag !== -1 ? process.argv[themeFlag + 1] : "gold"] ?? THEMES.gold;
 const LINE = THEME.line;
 const outFlag = process.argv.indexOf("--out");
 const OUT_PATH = outFlag !== -1 ? process.argv[outFlag + 1] : OUT;
