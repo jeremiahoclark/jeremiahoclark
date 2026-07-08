@@ -1,0 +1,11 @@
+{
+  "name": "tokscale-chart",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-chart.mjs"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0"
+  }
+}

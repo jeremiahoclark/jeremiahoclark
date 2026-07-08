@@ -14,6 +14,10 @@ If you're curious, my home on the internet is **[jeremiah.so](https://jeremiah.s
 
 For anything else, DM me on X **[@jeremiahoclark](https://twitter.com/jeremiahoclark)**.
 
+⚡ **AI Token Usage** — tracked with [tokscale](https://tokscale.ai/u/jeremiahoclark), auto-updated on every submit
+
+<img src="assets/tokscale-chart.svg" alt="Cumulative AI token usage over the last 3 months, stacked by coding agent (Claude Code, Droid, OpenCode)" width="100%" />
+
 📝 **Recent Writing**
 - [An Analysis of My Favorite Writer, Murakami](https://jeremiah.so/perspective/an-analysis-of-my-favorite-writer-murakami) — March 18, 2026
 - [The Alter Ego Method](https://jeremiah.so/perspective/the-alter-ego-method) — March 16, 2026
