@@ -15,7 +15,7 @@ const OUT = join(__dirname, "..", "assets", "tokscale-chart.svg");
 // Pass every known client explicitly: `tokscale graph` with no -c honors
 // settings.json defaultClients, which silently drops codex et al.
 const ALL_CLIENTS =
-  "opencode,claude,codex,cursor,gemini,amp,droid,openclaw,pi,kimi,qwen,roocode,kilocode,mux,kilo,crush,hermes,copilot,goose,codebuff,antigravity,zed,kiro,synthetic";
+  "opencode,claude,codex,cursor,gemini,amp,droid,openclaw,pi,kimi,qwen,roocode,kilocode,mux,kilo,crush,hermes,copilot,goose,codebuff,antigravity,zed,kiro,trae,warp,cline,gjc,grok,jcode,commandcode,micode,antigravity-cli,junie,zcode,opencodereview,codebuddy,workbuddy,synthetic";
 const inputFlag = process.argv.indexOf("--input");
 const raw =
   inputFlag !== -1
@@ -56,8 +56,19 @@ const fmt = (n) =>
 const W = 940, H = 420;
 const BG = "#0a0e1a";
 const INK = { primary: "#e6edf3", secondary: "#94a3b8", muted: "#475569", grid: "#1b2436" };
-const LINE = "#22d3ee"; // glow stroke; fill fades from validated #0891b2
 const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
+
+// --theme cyan|gold|purple  (line = glow stroke, fill = gradient top, edge = panel accent pair)
+const THEMES = {
+  cyan:   { line: "#22d3ee", fill: "#0891b2", edge: ["#22d3ee", "#8b5cf6"] },
+  gold:   { line: "#fbbf24", fill: "#d97706", edge: ["#fbbf24", "#f97316"] },
+  purple: { line: "#a78bfa", fill: "#7c3aed", edge: ["#a78bfa", "#ec4899"] },
+};
+const themeFlag = process.argv.indexOf("--theme");
+const THEME = THEMES[themeFlag !== -1 ? process.argv[themeFlag + 1] : "cyan"] ?? THEMES.cyan;
+const LINE = THEME.line;
+const outFlag = process.argv.indexOf("--out");
+const OUT_PATH = outFlag !== -1 ? process.argv[outFlag + 1] : OUT;
 
 const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width: W, height: H });
 
@@ -120,8 +131,8 @@ chart.setOption({
         color: {
           type: "linear", x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: "#0891b2B3" },
-            { offset: 1, color: "#0891b200" },
+            { offset: 0, color: THEME.fill + "B3" },
+            { offset: 1, color: THEME.fill + "00" },
           ],
         },
       },
@@ -154,14 +165,14 @@ svg = svg.replace(
   `<svg$1>
   <defs>
     <linearGradient id="panelEdge" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#0891b2" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#22d3ee" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+      <stop offset="0" stop-color="${THEME.fill}" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="${THEME.line}" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="${THEME.edge[1]}" stop-opacity="0"/>
     </linearGradient>
   </defs>
   <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="12" fill="${BG}" stroke="#1e293b"/>
   <rect x="120" y="0" width="${W - 240}" height="2" rx="1" fill="url(#panelEdge)"/>`
 );
 
-writeFileSync(OUT, svg);
-console.log(`wrote ${OUT} (${(svg.length / 1024).toFixed(0)} KB) — total ${fmt(grandTotal)} tokens`);
+writeFileSync(OUT_PATH, svg);
+console.log(`wrote ${OUT_PATH} (${(svg.length / 1024).toFixed(0)} KB) — total ${fmt(grandTotal)} tokens`);
