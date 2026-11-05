@@ -1,41 +1,43 @@
 #!/usr/bin/env node
-// Renders assets/tokscale-chart.svg from `tokscale graph` JSON.
-// Usage: node build-chart.mjs [--local | --input graph.json]   (defaults to Tokscale server stats)
+// Renders assets/tokscale-chart.svg from the local usage archive.
+// Usage: node build-chart.mjs [--local | --input graph.json]   (defaults to the local archive)
 
 import * as echarts from "echarts";
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = join(__dirname, "..", "assets", "tokscale-chart.svg");
 
 // --- data -------------------------------------------------------------
-// Source of truth is the Tokscale server (`/api/me/stats`): it keeps every
-// day ever submitted, while local session logs get pruned (Claude Code
-// deletes transcripts after ~30 days), so a local-only chart undercounts.
-// Falls back to local `tokscale graph` if the server can't be reached.
+// Reads the local archive (~/.local/share/tokscale-archive/usage.sqlite) that
+// sync-usage.mjs fills from the Tokscale server plus local session logs. Local
+// logs alone undercount: Claude Code deletes transcripts after ~30 days.
+// Falls back to local `tokscale graph` if the archive is missing.
 // Pass every known client explicitly: `tokscale graph` with no -c honors
 // settings.json defaultClients, which silently drops codex et al.
 const ALL_CLIENTS =
   "opencode,claude,codex,cursor,gemini,amp,droid,openclaw,pi,kimi,qwen,roocode,kilocode,mux,kilo,crush,hermes,copilot,goose,codebuff,antigravity,zed,kiro,trae,warp,cline,gjc,grok,jcode,commandcode,micode,antigravity-cli,junie,zcode,opencodereview,codebuddy,workbuddy,synthetic";
-const API_URL = process.env.TOKSCALE_API_URL || "https://tokscale.ai";
 const sumTokens = (t) => t.input + t.output + t.cacheRead + t.cacheWrite + (t.reasoning || 0);
 
-async function fromServer() {
-  const { token } = JSON.parse(readFileSync(join(homedir(), ".config", "tokscale", "credentials.json"), "utf8"));
-  const res = await fetch(`${API_URL}/api/me/stats`, {
-    headers: { Authorization: `Bearer ${token}`, "User-Agent": "tokscale-profile-chart" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const stats = await res.json();
-  if (!Array.isArray(stats.days) || stats.days.length === 0) throw new Error("no days in response");
-  const byDay = new Map(stats.days.map((d) => [d.date, d.tokens]));
-  const sorted = [...byDay.keys()].sort();
-  return { byDay, start: sorted[0], end: new Date().toISOString().slice(0, 10), source: "server" };
+// Local archive kept by sync-usage.mjs: server daily totals, with the
+// per-model breakdown filling any day the server doesn't have.
+async function fromArchive() {
+  const { openArchive } = await import("./sync-usage.mjs");
+  const db = openArchive();
+  const rows = db.prepare(`
+    SELECT date, MAX(tokens) AS tokens FROM (
+      SELECT date, total_tokens AS tokens FROM token_usage_daily
+      UNION ALL
+      SELECT date, SUM(total_tokens) FROM token_usage_detail
+      WHERE date NOT IN (SELECT date FROM token_usage_daily) GROUP BY date
+    ) GROUP BY date ORDER BY date`).all();
+  db.close();
+  if (rows.length === 0) throw new Error("archive is empty (run sync-usage.mjs)");
+  const byDay = new Map(rows.map((r) => [r.date, Number(r.tokens)]));
+  return { byDay, start: rows[0].date, end: new Date().toISOString().slice(0, 10), source: "archive" };
 }
 
 function fromLocal(file) {
@@ -61,9 +63,9 @@ if (inputFlag !== -1 || process.argv.includes("--local")) {
   data = fromLocal(inputFlag !== -1 ? process.argv[inputFlag + 1] : null);
 } else {
   try {
-    data = await fromServer();
+    data = await fromArchive();
   } catch (err) {
-    console.warn(`server stats unavailable (${err.message}); falling back to local tokscale graph`);
+    console.warn(`archive unavailable (${err.message}); falling back to local tokscale graph`);
     data = fromLocal(null);
   }
 }

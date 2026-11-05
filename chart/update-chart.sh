@@ -17,7 +17,10 @@ LOG=~/.tokscale-chart-update.log
 
   cd "$REPO/chart"
   [ -d node_modules ] || npm install --silent
-  node build-chart.mjs
+  # archive server + local usage, mirror to jeremiah.so D1; a failed step
+  # is logged but the chart still builds from whatever the archive holds
+  node --no-warnings sync-usage.mjs || echo "sync-usage had failures (see above)"
+  node --no-warnings build-chart.mjs
 
   cd "$REPO"
   if git diff --quiet -- assets/tokscale-chart.svg; then
