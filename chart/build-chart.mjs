@@ -1,43 +1,78 @@
 #!/usr/bin/env node
 // Renders assets/tokscale-chart.svg from `tokscale graph` JSON.
-// Usage: node build-chart.mjs [--input graph.json]   (defaults to running tokscale)
+// Usage: node build-chart.mjs [--local | --input graph.json]   (defaults to Tokscale server stats)
 
 import * as echarts from "echarts";
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = join(__dirname, "..", "assets", "tokscale-chart.svg");
 
 // --- data -------------------------------------------------------------
+// Source of truth is the Tokscale server (`/api/me/stats`): it keeps every
+// day ever submitted, while local session logs get pruned (Claude Code
+// deletes transcripts after ~30 days), so a local-only chart undercounts.
+// Falls back to local `tokscale graph` if the server can't be reached.
 // Pass every known client explicitly: `tokscale graph` with no -c honors
 // settings.json defaultClients, which silently drops codex et al.
 const ALL_CLIENTS =
   "opencode,claude,codex,cursor,gemini,amp,droid,openclaw,pi,kimi,qwen,roocode,kilocode,mux,kilo,crush,hermes,copilot,goose,codebuff,antigravity,zed,kiro,trae,warp,cline,gjc,grok,jcode,commandcode,micode,antigravity-cli,junie,zcode,opencodereview,codebuddy,workbuddy,synthetic";
-const inputFlag = process.argv.indexOf("--input");
-const raw =
-  inputFlag !== -1
-    ? readFileSync(process.argv[inputFlag + 1], "utf8")
+const API_URL = process.env.TOKSCALE_API_URL || "https://tokscale.ai";
+const sumTokens = (t) => t.input + t.output + t.cacheRead + t.cacheWrite + (t.reasoning || 0);
+
+async function fromServer() {
+  const { token } = JSON.parse(readFileSync(join(homedir(), ".config", "tokscale", "credentials.json"), "utf8"));
+  const res = await fetch(`${API_URL}/api/me/stats`, {
+    headers: { Authorization: `Bearer ${token}`, "User-Agent": "tokscale-profile-chart" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const stats = await res.json();
+  if (!Array.isArray(stats.days) || stats.days.length === 0) throw new Error("no days in response");
+  const byDay = new Map(stats.days.map((d) => [d.date, d.tokens]));
+  const sorted = [...byDay.keys()].sort();
+  return { byDay, start: sorted[0], end: new Date().toISOString().slice(0, 10), source: "server" };
+}
+
+function fromLocal(file) {
+  const raw = file
+    ? readFileSync(file, "utf8")
     : execFileSync("tokscale", ["graph", "-c", ALL_CLIENTS, "--no-spinner"], {
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
       });
-const graph = JSON.parse(raw);
-
-const sumTokens = (t) => t.input + t.output + t.cacheRead + t.cacheWrite + (t.reasoning || 0);
-
-const byDay = new Map(); // date -> tokens
-for (const day of graph.contributions) {
-  let tok = 0;
-  for (const c of day.clients) tok += sumTokens(c.tokens);
-  byDay.set(day.date, (byDay.get(day.date) || 0) + tok);
+  const graph = JSON.parse(raw);
+  const byDay = new Map(); // date -> tokens
+  for (const day of graph.contributions) {
+    let tok = 0;
+    for (const c of day.clients) tok += sumTokens(c.tokens);
+    byDay.set(day.date, (byDay.get(day.date) || 0) + tok);
+  }
+  return { byDay, start: graph.meta.dateRange.start, end: graph.meta.dateRange.end, source: "local" };
 }
 
+const inputFlag = process.argv.indexOf("--input");
+let data;
+if (inputFlag !== -1 || process.argv.includes("--local")) {
+  data = fromLocal(inputFlag !== -1 ? process.argv[inputFlag + 1] : null);
+} else {
+  try {
+    data = await fromServer();
+  } catch (err) {
+    console.warn(`server stats unavailable (${err.message}); falling back to local tokscale graph`);
+    data = fromLocal(null);
+  }
+}
+const { byDay } = data;
+const activeDays = [...byDay.values()].filter((t) => t > 0).length;
+
 // continuous date axis, cumulative total carried through gaps
-const start = new Date(graph.meta.dateRange.start + "T00:00:00Z");
-const end = new Date(graph.meta.dateRange.end + "T00:00:00Z");
+const start = new Date(data.start + "T00:00:00Z");
+const end = new Date(data.end + "T00:00:00Z");
 const dates = [];
 for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
   dates.push(d.toISOString().slice(0, 10));
@@ -47,7 +82,7 @@ const totals = dates.map((date) => (running += byDay.get(date) || 0));
 const grandTotal = running;
 
 const fmt = (n) =>
-  n >= 1e9 ? (n / 1e9).toFixed(n >= 1e10 ? 0 : 1) + "B"
+  n >= 1e9 ? (n / 1e9).toFixed(n >= 1e11 ? 0 : 1) + "B"
   : n >= 1e6 ? (n / 1e6).toFixed(0) + "M"
   : n >= 1e3 ? (n / 1e3).toFixed(0) + "K"
   : String(n);
@@ -84,7 +119,7 @@ chart.setOption({
       textStyle: { color: INK.primary, fontSize: 20, fontWeight: 700, fontFamily: MONO },
     },
     {
-      text: `${fmt(grandTotal)} tokens · ${graph.summary.activeDays} active days · ${dates[0]} → ${dates[dates.length - 1]}`,
+      text: `${fmt(grandTotal)} tokens · ${activeDays} active days · ${dates[0]} → ${dates[dates.length - 1]}`,
       left: 64,
       top: 50,
       textStyle: { color: INK.secondary, fontSize: 12, fontWeight: 400, fontFamily: MONO },
@@ -175,4 +210,4 @@ svg = svg.replace(
 );
 
 writeFileSync(OUT_PATH, svg);
-console.log(`wrote ${OUT_PATH} (${(svg.length / 1024).toFixed(0)} KB) — total ${fmt(grandTotal)} tokens`);
+console.log(`wrote ${OUT_PATH} (${(svg.length / 1024).toFixed(0)} KB) — total ${fmt(grandTotal)} tokens (${data.source})`);
